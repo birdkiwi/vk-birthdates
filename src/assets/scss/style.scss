@@ -205,6 +205,16 @@ body {
   padding: 0 20px;
 }
 
+.donation {
+  margin-top: 20px;
+  margin-bottom: 40px;
+  text-align: center;
+
+  table {
+    display: inline-block;
+  }
+}
+
 .fade-enter-active, .fade-leave-active {
   transition: opacity .5s
 }
