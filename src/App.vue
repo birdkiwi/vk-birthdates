@@ -13,16 +13,27 @@
 
     <form class="group-form" action="" @submit.prevent="fetchGroup">
       <div class="wrapper">
+        <a href="https://startler.ru" class="logo">
+          Startler
+        </a>
         <input type="text" v-model="group_id" required placeholder="ID группы" value="velopohod_s_medvejut">
         <div class="group-form-label">
           Дата от
         </div>
-        <datepicker v-model="userStartDate" placeholder="дд.мм" format="dd.MM" minimum-view="day" maximum-view="month" language="ru"></datepicker>
+        <datepicker v-model="userStartDate" placeholder="дд.мм" format="dd.MM" minimum-view="day" maximum-view="month" language="ru" :monday-first="true"></datepicker>
         <div class="group-form-label">
           Дата до
         </div>
-        <datepicker v-model="userEndDate" placeholder="дд.мм" format="dd.MM" minimum-view="day" maximum-view="month" language="ru"></datepicker>
+        <datepicker v-model="userEndDate" placeholder="дд.мм" format="dd.MM" minimum-view="day" maximum-view="month" language="ru" :monday-first="true"></datepicker>
         <button type="submit">Найти</button>
+
+        <!--
+        <a v-if="!token" href="#" @click.prevent="vkAuth" class="group-form-user group-form-user-empty" title="Авторизоваться в VK">
+          ?
+        </a>
+        <div class="group-form-user" v-else>
+          <img v-if="userPersonal.photo_50" :src="userPersonal.photo_50" alt="">
+        </div>-->
       </div>
     </form>
 
@@ -30,7 +41,9 @@
       <div class="wrapper">
         <transition name="fade">
           <div v-if="groupInfo && groupMembers.length" class="group-info">
-            <img v-if="groupInfo.photo_50" :src="groupInfo.photo_50" alt="" class="group-info-image">
+            <div class="group-info-image" v-if="groupInfo.photo_50">
+              <img :src="groupInfo.photo_50" alt="">
+            </div>
             <h1 class="group-info-name">{{ groupInfo.name }}</h1>
           </div>
         </transition>
@@ -43,7 +56,22 @@
           </div>
         </transition>
 
-        <table v-if="groupMembers.length" class="group-table">
+        <transition name="fade">
+          <div v-if="groupMembers.length" class="row">
+            <div class="col-xs-12 col-sm-6">
+              <div class="text-template-area" v-html="textTemplate"></div>
+            </div>
+            <div class="col-xs-12 col-sm-6">
+              <div class="text-template-area" v-html="altTextTemplate"></div>
+            </div>
+          </div>
+        </transition>
+
+        <div class="csv-button" v-if="filteredGroupMembers.length">
+          <button @click.prevent="downloadCSV">Скачать CSV</button>
+        </div>
+
+        <table v-if="filteredGroupMembers.length" class="group-table">
           <tbody>
           <tr>
             <th>
@@ -62,9 +90,9 @@
               День рождения
             </th>
           </tr>
-          <tr v-for="(m, index) in groupMembers" v-if="filterMember(m)">
+          <tr v-for="(m, index) in filteredGroupMembers">
             <td>
-              {{ index }}
+              {{ index+1 }}
             </td>
             <td>
               <a :href="'https://vk.com/id' + m.id" target="_blank">
@@ -127,7 +155,7 @@
     },
     data() {
       return {
-        params: queryString.parse(window.location.search),
+        params: queryString.parse(window.location.hash),
         group_id: null,
         userStartDate: '',
         userEndDate: '',
@@ -136,7 +164,13 @@
     },
     computed: {
       token() {
-        return this.$store.state.accessToken;
+        return this.$store.state.userInfo.access_token;
+      },
+      userId() {
+        return this.$store.state.userInfo.user_id;
+      },
+      userPersonal() {
+        return this.$store.state.userInfo.personal;
       },
       startDate() {
         return this.$store.state.startDate;
@@ -150,6 +184,9 @@
       groupMembers() {
         return this.$store.state.groupMembers;
       },
+      filteredGroupMembers() {
+        return this.$store.getters.filteredGroupMembers;
+      },
       countGroupMembersWithBirthday() {
         return this.$store.getters.countGroupMembersWithBirthday;
       },
@@ -158,6 +195,30 @@
       },
       spinner() {
         return this.$store.state.spinner;
+      },
+      textTemplate() {
+        let text = 'Поздравляем наших именинников этой недели! ';
+
+        if (this.filteredGroupMembers.length) {
+          this.filteredGroupMembers.forEach(m => {
+            text += ` <a href="https://vk.com/${m.id}">@id${m.id}</a>,`;
+          });
+          // Remove last comma
+          text = text.slice(0, -1);
+        }
+        return text;
+      },
+      altTextTemplate() {
+        let text = '';
+
+        if (this.filteredGroupMembers.length) {
+          this.filteredGroupMembers.forEach(m => {
+              text += ` <a href="https://vk.com/${m.id}">@id${m.id}</a>, (${m.first_name} ${m.last_name}),`;
+          });
+          // Remove last comma
+          text = text.slice(0, -1);
+        }
+        return text;
       }
     },
     methods: {
@@ -215,6 +276,8 @@
                   })
                   .catch(err => {
                     _this.$toaster.error("Network error...");
+                    _this.$store.commit('setSpinner', false);
+                    _this.stopPlease = false;
                   });
               }
 
@@ -227,31 +290,60 @@
           })
           .catch(err => {
             this.$toaster.error("Network error...");
+            this.$store.commit('setSpinner', false);
+            this.stopPlease = false;
           });
       },
-      filterMember(m) {
-        if (m.bdate) {
-          let bdate = m.bdate.split('.');
+      downloadCSV() {
+        this.$store.dispatch('getFilteredGroupMembersCSV')
+          .then(res => {
+            const data = 'data:text/plain;charset=utf-8,' + encodeURIComponent(res);
 
-          //Check if in date range
-          if (
-            (moment(this.startDate).month() <= (bdate[1]-1)) &&
-            ((bdate[1]-1) <= moment(this.endDate).month())
-          ) {
-            if (
-              (moment(this.startDate).date() <= bdate[0]) &&
-              (bdate[0] <= moment(this.endDate).date())
-            ) {
-              return true;
-            }
-          }
-        }
+            const link = document.createElement('a');
+            link.setAttribute('href', data);
+            link.setAttribute('download', 'export.csv');
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          })
+          .catch(e => {
+            console.log(e);
+            this.$toaster.error("Ошибка выгрузки CSV");
+          });
       }
     },
     mounted() {
+      if (this.params.access_token) {
+        this.$store.commit('setAccessToken', this.params.access_token);
+      }
+
+      if (this.params.user_id) {
+        this.$store.commit('setUserId', this.params.user_id);
+      }
+
       window.moment = moment;
-      this.userStartDate = moment(this.startDate).format('dd.MM');
-      this.userEndDate = moment(this.endDate).format('dd.MM');
+
+      window.location.hash = "";
+
+      if (this.token && this.userId) {
+        this.$store.dispatch('fetchUserInfo')
+          .then(res => {
+            if (res.data && res.data.error && res.data.error.error_msg) {
+              this.$toaster.error(res.data.error.error_msg);
+            }
+
+            if (res.data && res.data.response && res.data.response.length) {
+              this.$store.commit('setUserPersonal', res.data.response[0]);
+            }
+          }).catch(e => {
+            console.log(e);
+            _this.$toaster.error("Ошибка авторизации в VK. Network error...");
+          });
+      }
+
+      this.userStartDate = this.startDate;
+      this.userEndDate = this.endDate;
 
       this.$watch('userStartDate', function (newVal) {
         if (newVal > this.endDate) {
@@ -264,10 +356,6 @@
       this.$watch('userEndDate', function (newVal) {
         this.$store.commit('setEndDate', newVal);
       });
-
-      if (this.params.access_token) {
-        this.$store.commit('setAccessToken', this.params.access_token);
-      }
 
       /*if (!this.token) {
         this.vkAuth();

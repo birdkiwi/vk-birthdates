@@ -2,6 +2,7 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 import axios from 'axios';
 import moment from 'moment';
+import json2csv from 'json2csv';
 import config from './config';
 import createPersistedState from 'vuex-persistedstate';
 
@@ -9,16 +10,26 @@ Vue.use(Vuex);
 
 const store = new Vuex.Store({
   state: {
-    accessToken: null,
+    userInfo: {
+      user_id: null,
+      access_token: null,
+      personal: {}
+    },
     groupInfo: {},
     groupMembers: [],
-    startDate: moment(),
-    endDate: moment().add(7, 'days'),
+    startDate: moment().toDate(),
+    endDate: moment().add(1, 'days').toDate(),
     spinner: false
   },
   mutations: {
+    setUserId(state, id) {
+      state.userInfo.user_id = id;
+    },
     setAccessToken(state, token) {
-      state.accessToken = token;
+      state.userInfo.access_token = token;
+    },
+    setUserPersonal(state, personal) {
+      state.userInfo.personal = personal;
     },
     setGroupInfo(state, info) {
       state.groupInfo = info;
@@ -40,6 +51,23 @@ const store = new Vuex.Store({
     }
   },
   actions: {
+    fetchUserInfo(store) {
+      return new Promise((resolve, reject) => {
+        axios.get('fetchUserInfo.php', {
+          params: {
+            user_ids: store.state.userInfo.user_id,
+            fields: 'photo_50',
+            //access_token: store.state.userInfo.access_token
+          }
+        })
+        .then(res => {
+          resolve(res);
+        })
+        .catch(err => {
+          reject(err);
+        });
+      });
+    },
     fetchGroupInfo(store, group_id) {
       return new Promise((resolve, reject) => {
         axios.get('fetchGroupInfo.php',
@@ -48,7 +76,7 @@ const store = new Vuex.Store({
               group_id: group_id,
               fields: 'members_count',
               v: config.api_ver,
-              access_token: store.state.token
+              access_token: store.state.userInfo.access_token
             }
           })
           .then(res => {
@@ -69,7 +97,7 @@ const store = new Vuex.Store({
               count: 1000,
               offset: params.offset,
               v: config.api_ver,
-              access_token: store.state.token
+              access_token: store.state.userInfo.access_token
             }
           })
           .then(res => {
@@ -79,13 +107,19 @@ const store = new Vuex.Store({
             reject(err);
           });
       });
+    },
+    getFilteredGroupMembersCSV(store) {
+      const fields = ['id', 'first_name', 'last_name', 'bdate'];
+      const csv = json2csv({
+        data: store.getters.filteredGroupMembers,
+        fields
+      });
+
+      return csv;
     }
   },
   getters: {
-    countGroupMembersWithBirthday(state) {
-      return state.groupMembers.filter(member => member.bdate).length;
-    },
-    countGroupMembersFiltered(state) {
+    filteredGroupMembers(state) {
       return state.groupMembers.filter(m => {
         if (m.bdate) {
           let bdate = m.bdate.split('.');
@@ -103,11 +137,17 @@ const store = new Vuex.Store({
             }
           }
         }
-      }).length;
+      });
+    },
+    countGroupMembersWithBirthday(state) {
+      return state.groupMembers.filter(member => member.bdate).length;
+    },
+    countGroupMembersFiltered(state, getters) {
+      return getters.filteredGroupMembers.length;
     }
   },
   plugins: [createPersistedState({
-    paths: ['accessToken']
+    paths: ['userInfo']
   })]
 });
 
