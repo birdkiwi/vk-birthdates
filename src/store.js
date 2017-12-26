@@ -57,6 +57,7 @@ const store = new Vuex.Store({
           params: {
             user_ids: store.state.userInfo.user_id,
             fields: 'photo_50',
+            lang: 'ru',
             //access_token: store.state.userInfo.access_token
           }
         })
@@ -76,6 +77,7 @@ const store = new Vuex.Store({
               group_id: group_id,
               fields: 'members_count',
               v: config.api_ver,
+              lang: 'ru',
               access_token: store.state.userInfo.access_token
             }
           })
@@ -97,6 +99,7 @@ const store = new Vuex.Store({
               count: 1000,
               offset: params.offset,
               v: config.api_ver,
+              lang: 'ru',
               access_token: store.state.userInfo.access_token
             }
           })
@@ -110,29 +113,33 @@ const store = new Vuex.Store({
     },
     getFilteredGroupMembersCSV(store) {
       const fields = ['id', 'first_name', 'last_name', 'bdate'];
-      const csv = json2csv({
+
+      return json2csv({
         data: store.getters.filteredGroupMembers,
         fields
       });
-
-      return csv;
     }
   },
   getters: {
     filteredGroupMembers(state) {
       return state.groupMembers.filter(m => {
+        let searchStart = moment( '2000-' + (moment(state.startDate).month()+1) + '-' + moment(state.startDate).date() );
+        let searchEnd = moment( '2000-' + (moment(state.endDate).month()+1) + '-' + moment(state.endDate).date() );
+
         if (m.bdate) {
           let bdate = m.bdate.split('.');
+          bdate[0] = bdate[0].padStart(2, '0');
+          bdate[1] = bdate[1].padStart(2, '0');
+          bdate[2] = 2000;
+          let memberBirthdate = moment(bdate[2] + '-' + bdate[1] + '-' + bdate[0]);
 
           //Check if in date range
-          if (
-            (moment(state.startDate).month() <= (bdate[1]-1)) &&
-            ((bdate[1]-1) <= moment(state.endDate).month())
-          ) {
-            if (
-              (moment(state.startDate).date() <= bdate[0]) &&
-              (bdate[0] <= moment(state.endDate).date())
-            ) {
+          if (searchStart.isAfter(searchEnd)) {
+            if (memberBirthdate.isSameOrAfter(searchStart) || memberBirthdate.isSameOrBefore(searchEnd)) {
+              return true;
+            }
+          } else {
+            if (memberBirthdate.isSameOrAfter(searchStart) && memberBirthdate.isSameOrBefore(searchEnd)) {
               return true;
             }
           }

@@ -25,6 +25,7 @@ body {
 }
 
 .wrapper {
+  width: 100%;
   max-width: 960px;
   padding: 0 15px;
   margin-left: auto;
@@ -68,9 +69,14 @@ body {
     line-height: 36px;
     margin-left: 10px;
     margin-right: 20px;
+    box-shadow: none;
 
     &:focus {
       background-color: rgb(229, 237, 255);
+
+      &:invalid {
+        background-color: rgb(255, 219, 224);
+      }
     }
   }
 
