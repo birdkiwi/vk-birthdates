@@ -6,7 +6,7 @@ import 'v-toaster/dist/v-toaster.css';
 
 Vue.use(Toaster, {timeout: 5000});
 
-new Vue({
+window.app = new Vue({
   el: '#app',
   store,
   render: h => h(App)

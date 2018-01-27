@@ -123,8 +123,8 @@ const store = new Vuex.Store({
   getters: {
     filteredGroupMembers(state) {
       return state.groupMembers.filter(m => {
-        let searchStart = moment( '2000-' + (moment(state.startDate).month()+1) + '-' + moment(state.startDate).date() );
-        let searchEnd = moment( '2000-' + (moment(state.endDate).month()+1) + '-' + moment(state.endDate).date() );
+        let searchStart = moment( '2000-' + moment(state.startDate).format('MM-DD'));
+        let searchEnd = moment( '2000-' + moment(state.endDate).format('MM-DD'));
 
         if (m.bdate) {
           let bdate = m.bdate.split('.');
