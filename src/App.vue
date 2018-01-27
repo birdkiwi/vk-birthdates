@@ -216,7 +216,7 @@
 
         if (this.filteredGroupMembers.length) {
           this.filteredGroupMembers.forEach(m => {
-              text += ` <a href="https://vk.com/${m.id}">@id${m.id}</a>, (${m.first_name} ${m.last_name}),`;
+              text += ` <a href="https://vk.com/${m.id}">@id${m.id}</a> (${m.first_name} ${m.last_name}),`;
           });
           // Remove last comma
           text = text.slice(0, -1);
@@ -320,6 +320,12 @@
         date[0] = date[0].padStart(2, '0');
         date[1] = date[1].padStart(2, '0');
         return date[0] + '.' + date[1];
+      },
+      updateLocationHash() {
+        this.params.startDate = moment(this.$store.state.startDate).format('YYYY-MM-DD');
+        this.params.endDate = moment(this.$store.state.endDate).format('YYYY-MM-DD');
+        this.params.group_id = this.group_id;
+        window.location.hash = queryString.stringify(this.params);
       }
     },
     mounted() {
@@ -332,8 +338,6 @@
       }
 
       window.moment = moment;
-
-      window.location.hash = "";
 
       if (this.token && this.userId) {
         this.$store.dispatch('fetchUserInfo')
@@ -351,15 +355,22 @@
           });
       }
 
-      this.userStartDate = this.startDate;
-      this.userEndDate = this.endDate;
+      this.userStartDate = this.params.startDate ? moment(this.params.startDate).toDate() : this.startDate;
+      this.userEndDate = this.params.endDate ? moment(this.params.endDate).toDate() : this.endDate;
+      this.group_id = this.params.group_id;
 
-      this.$watch('userStartDate', function (newVal) {
+      this.$watch('userStartDate', newVal => {
         this.$store.commit('setStartDate', newVal);
+        this.updateLocationHash();
       });
 
-      this.$watch('userEndDate', function (newVal) {
+      this.$watch('userEndDate', newVal => {
         this.$store.commit('setEndDate', newVal);
+        this.updateLocationHash();
+      });
+
+      this.$watch('group_id', () => {
+        this.updateLocationHash();
       });
 
       /*if (!this.token) {
