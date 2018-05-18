@@ -11,7 +11,7 @@
       </div>
     </transition>
 
-    <form class="group-form" action="" @submit.prevent="fetchGroup">
+    <form class="group-form" action="" @submit.prevent="token ? fetchGroup() : vkAuth()">
       <div class="wrapper">
         <a href="https://startler.ru" class="logo">
           Startler
@@ -27,13 +27,12 @@
         <datepicker v-model="userEndDate" placeholder="дд.мм" format="dd.MM" minimum-view="day" maximum-view="month" language="ru" :monday-first="true"></datepicker>
         <button type="submit">Найти</button>
 
-        <!--
         <a v-if="!token" href="#" @click.prevent="vkAuth" class="group-form-user group-form-user-empty" title="Авторизоваться в VK">
           ?
         </a>
-        <div class="group-form-user" v-else>
+        <div class="group-form-user" :title="userPersonal.first_name + ' ' + userPersonal.last_name" v-else>
           <img v-if="userPersonal.photo_50" :src="userPersonal.photo_50" alt="">
-        </div>-->
+        </div>
       </div>
     </form>
 
@@ -227,9 +226,10 @@
     methods: {
       vkAuth() {
         let params = {
-          redirect_uri: config.redirect_url,
+          redirect_uri: config.login_url,
+          display: 'page',
           client_id: config.client_id,
-          response_type: 'token',
+          response_type: 'code',
           v: config.api_ver
         };
 

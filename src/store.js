@@ -58,7 +58,8 @@ const store = new Vuex.Store({
             user_ids: store.state.userInfo.user_id,
             fields: 'photo_50',
             lang: 'ru',
-            //access_token: store.state.userInfo.access_token
+            access_token: store.state.userInfo.access_token,
+            v: config.api_ver
           }
         })
         .then(res => {
