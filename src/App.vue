@@ -344,6 +344,9 @@
           .then(res => {
             if (res.data && res.data.error && res.data.error.error_msg) {
               this.$toaster.error(res.data.error.error_msg);
+              this.$store.commit('setAccessToken', null);
+              this.$store.commit('setUserId', null);
+              this.$store.commit('setUserPersonal', {});
             }
 
             if (res.data && res.data.response && res.data.response.length) {
@@ -372,12 +375,6 @@
       this.$watch('group_id', () => {
         this.updateLocationHash();
       });
-
-      /*if (!this.token) {
-        this.vkAuth();
-      } else {
-
-      }*/
     }
   }
 </script>
